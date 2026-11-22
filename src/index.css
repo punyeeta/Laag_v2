@@ -1,0 +1,136 @@
+@import 'tailwindcss';
+
+/* Jeepney palette (Phase 3, design tokens). Named by role so another palette
+   can be added later without touching components. All text pairs meet WCAG AA. */
+:root {
+  --ink: #141826;
+  --muted: #4a5168;
+  --primary: #1e3a8a;
+  --primary-tint: #e1e8fa;
+  --uncertain: #b42318;
+  --uncertain-tint: #fde8e6;
+  --uncertain-dark: #8a1c12;
+  --surface: #f2f4f8;
+  --input-border: #838ba3;
+  --line: #dce0ea;
+  --paper: #ffffff;
+  --success-tint: #d8f0d5;
+  --success: #1f5e1a;
+}
+
+@theme inline {
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-primary: var(--primary);
+  --color-primary-tint: var(--primary-tint);
+  --color-uncertain: var(--uncertain);
+  --color-uncertain-tint: var(--uncertain-tint);
+  --color-uncertain-dark: var(--uncertain-dark);
+  --color-surface: var(--surface);
+  --color-input-border: var(--input-border);
+  --color-line: var(--line);
+  --color-paper: var(--paper);
+  --color-success: var(--success);
+  --color-success-tint: var(--success-tint);
+
+  --font-display: 'Big Shoulders Display', 'Archivo', system-ui, sans-serif;
+  --font-sans: 'Archivo', system-ui, -apple-system, 'Segoe UI', sans-serif;
+
+  --radius-control: 10px;
+  --radius-card: 16px;
+}
+
+/* Type scale (not inline, so utilities read the variables and the
+   mouse-sized override below applies everywhere). Phone: 13, 15, 16, 20, 28, 34, 40, 56. */
+@theme {
+  --text-xs: 13px;
+  --text-sm: 15px;
+  --text-base: 16px;
+  --text-lg: 20px;
+  --text-xl: 28px;
+  --text-3xl: 34px;
+  --text-2xl: 40px;
+  --text-4xl: 56px;
+}
+
+/* Laptops and desktops (a mouse, not a finger): a denser layout. Touch
+   screens keep the 44px targets from NFR-03. Spacing drives padding, gaps
+   and control heights, so shrinking it scales buttons and cards together. */
+@media (pointer: fine) {
+  :root {
+    --spacing: 0.22rem;
+    --text-xs: 12px;
+    --text-sm: 14px;
+    --text-base: 15px;
+    --text-lg: 18px;
+    --text-xl: 22px;
+    --text-3xl: 28px;
+    --text-2xl: 32px;
+    --text-4xl: 44px;
+  }
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--surface);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  font-size: var(--text-base);
+  line-height: 1.4;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Everything you can click shows the hand cursor. */
+@layer base {
+  button,
+  [role='button'],
+  [role='switch'],
+  [role='checkbox'],
+  [role='radio'],
+  summary,
+  select,
+  label:has(input[type='checkbox']),
+  input[type='checkbox'],
+  input[type='date'],
+  input[type='time'] {
+    cursor: pointer;
+  }
+  button:disabled,
+  select:disabled,
+  input:disabled {
+    cursor: not-allowed;
+  }
+}
+
+/* In the components layer so utilities like normal-case can override them. */
+@layer components {
+  /* Money lines up in columns. */
+  .tnum {
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Screen titles in capitals, like jeepney route signs. */
+  .sign {
+    font-family: var(--font-display);
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.01em;
+    line-height: 1;
+  }
+}
+
+:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  scrollbar-width: none;
+}

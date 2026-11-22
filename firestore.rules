@@ -1,0 +1,83 @@
+rules_version = '2';
+
+// Phase 3 security rules (NFR-06). Only members of a trip can read or change
+// it; on trips that require approval, people waiting see only the names.
+service cloud.firestore {
+  match /databases/{db}/documents {
+    function signedIn() { return request.auth != null; }
+    function tripPath(t) { return /databases/$(db)/documents/trips/$(t); }
+    function memberPath(t) { return /databases/$(db)/documents/trips/$(t)/members/$(request.auth.uid); }
+    function isMember(t) {
+      return signedIn() && exists(memberPath(t));
+    }
+    function canEdit(t) {
+      return isMember(t) && get(memberPath(t)).data.approved == true;
+    }
+    function isOrganizer(t) {
+      return signedIn() && get(tripPath(t)).data.organizerUid == request.auth.uid;
+    }
+
+    // Your profile and saved cars are private to you.
+    match /users/{uid} {
+      allow read, delete: if signedIn() && request.auth.uid == uid;
+      // Only the profile's own fields: default name, pinned trip, new-trip defaults.
+      allow create, update: if signedIn() && request.auth.uid == uid
+        && request.resource.data.keys().hasOnly(['defaultName', 'pinnedTripId', 'tripDefaults'])
+        && (!('pinnedTripId' in request.resource.data)
+            || request.resource.data.pinnedTripId == null
+            || request.resource.data.pinnedTripId is string)
+        && (!('defaultName' in request.resource.data)
+            || (request.resource.data.defaultName is string && request.resource.data.defaultName.size() <= 60));
+
+      match /cars/{carId} {
+        allow read, write: if signedIn() && request.auth.uid == uid;
+      }
+    }
+
+    match /trips/{t} {
+      allow create: if signedIn() && request.resource.data.organizerUid == request.auth.uid;
+      allow read: if isMember(t);
+      allow update: if canEdit(t)
+        && request.resource.data.organizerUid == resource.data.organizerUid;
+      allow delete: if isMember(t) && resource.data.organizerUid == request.auth.uid;
+
+      match /members/{uid} {
+        allow read: if isMember(t);
+        // Joining: only with the trip's current invite code. Approved
+        // straight away unless the trip requires approval.
+        allow create: if signedIn() && request.auth.uid == uid
+          && request.resource.data.uid == uid
+          && request.resource.data.code == getAfter(tripPath(t)).data.inviteCode
+          && (request.resource.data.approved == false
+              || getAfter(tripPath(t)).data.requireApproval != true
+              || getAfter(tripPath(t)).data.organizerUid == uid);
+        // Only the organizer can change approved.
+        allow update: if isOrganizer(t)
+          || (request.auth.uid == uid
+              && request.resource.data.approved == resource.data.approved
+              && request.resource.data.uid == resource.data.uid);
+        allow delete: if isOrganizer(t) || request.auth.uid == uid;
+      }
+
+      match /activity/{id} {
+        allow read: if canEdit(t);
+        allow create: if canEdit(t) && request.resource.data.actorUid == request.auth.uid;
+        // Undo: only the actor, or the organizer (for someone they removed).
+        allow update: if canEdit(t)
+          && (resource.data.actorUid == request.auth.uid || isOrganizer(t));
+      }
+
+      match /{sub}/{id} {
+        allow read: if !(sub in ['members', 'activity'])
+          && (canEdit(t) || (sub == 'people' && isMember(t)));
+        allow write: if canEdit(t) && !(sub in ['members', 'activity']);
+      }
+    }
+
+    // "My trips": a collection-group query on members where uid == me.
+    // Checks the uid field so Firestore can prove the query is safe.
+    match /{path=**}/members/{memberId} {
+      allow read: if signedIn() && resource.data.uid == request.auth.uid;
+    }
+  }
+}
